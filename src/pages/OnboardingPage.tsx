@@ -1,31 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
 import { ShieldCheckIcon, PawPrintIcon, CheckCircle2Icon } from 'lucide-react';
+
 type Step = 'welcome' | 'email' | 'did' | 'terms' | 'pet';
+
 export function OnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('welcome');
-  const validateEmail = (value: string) => {
-  if (!value) return '이메일을 입력해주세요.';
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) {
-      return '올바른 이메일 형식이 아닙니다.';
-    }
-    return '';
-  };
-
-    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setEmail(value);
-    setEmailError(validateEmail(value));
-  };
+  // 이메일 상태 & 검증
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
+
+  // DID 생성 완료 여부
+  const [didReady, setDidReady] = useState(false);
+
+  // 공통 로딩 (이메일 제출, 마지막 완료 등에 사용)
+  const [loading, setLoading] = useState(false);
+
   const [petData, setPetData] = useState({
     name: '',
     breed: '',
@@ -33,13 +29,30 @@ export function OnboardingPage() {
     gender: 'male' as 'male' | 'female',
     vaccinated: false
   });
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const handleEmailSubmit = () => {
 
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // 이메일 형식 검증 함수
+  const validateEmail = (value: string) => {
+    if (!value) return '이메일을 입력해주세요.';
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) {
+      return '올바른 이메일 형식이 아닙니다.';
+    }
+    return '';
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    setEmailError(validateEmail(value));
+  };
+
+  const handleEmailSubmit = () => {
     const error = validateEmail(email);
-      if (error) {
-        setEmailError(error);
+    if (error) {
+      setEmailError(error);
       return;
     }
 
@@ -49,13 +62,25 @@ export function OnboardingPage() {
       setStep('did');
     }, 1500);
   };
+
+  // step이 'did'로 들어올 때 3초 후 DID 생성 완료 상태로 변경
+  useEffect(() => {
+    if (step === 'did') {
+      setDidReady(false); // 매번 did 단계 들어올 때 초기화
+      const timer = setTimeout(() => {
+        setDidReady(true);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
+  // DID 생성 완료 버튼 클릭 시 다음 단계로 이동
   const handleDIDCreation = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep('terms');
-    }, 2000);
+    if (!didReady) return; // 혹시 모를 클릭 방지
+    setStep('terms');
   };
+
   const handleComplete = () => {
     setLoading(true);
     setTimeout(() => {
@@ -64,29 +89,41 @@ export function OnboardingPage() {
           pet: {
             name: petData.name,
             breed: petData.breed,
-            age: petData.age,
-          },
-        },
+            age: petData.age
+          }
+        }
       });
     }, 1000);
   };
-  return <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-500 to-blue-500 flex items-center justify-center p-4">
-      <motion.div initial={{
-      opacity: 0,
-      y: 20
-    }} animate={{
-      opacity: 1,
-      y: 0
-    }} className="w-full max-w-md">
-        {step === 'welcome' && <Card className="text-center">
-            <motion.div initial={{
-          scale: 0
-        }} animate={{
-          scale: 1
-        }} transition={{
-          delay: 0.2,
-          type: 'spring'
-        }} className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-500 to-blue-500 flex items-center justify-center p-4">
+      <motion.div
+        initial={{
+          opacity: 0,
+          y: 20
+        }}
+        animate={{
+          opacity: 1,
+          y: 0
+        }}
+        className="w-full max-w-md"
+      >
+        {step === 'welcome' && (
+          <Card className="text-center">
+            <motion.div
+              initial={{
+                scale: 0
+              }}
+              animate={{
+                scale: 1
+              }}
+              transition={{
+                delay: 0.2,
+                type: 'spring'
+              }}
+              className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
               <PawPrintIcon size={40} className="text-white" />
             </motion.div>
             <h1 className="text-3xl font-bold text-gray-900 mb-3">PetChain</h1>
@@ -124,43 +161,79 @@ export function OnboardingPage() {
             <Button onClick={() => setStep('email')} className="w-full">
               시작하기
             </Button>
-          </Card>}
+          </Card>
+        )}
 
-        {step === 'email' && <Card>
+        {step === 'email' && (
+          <Card>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               이메일로 시작하기
             </h2>
             <p className="text-gray-600 mb-6">
               계정을 생성하고 DID를 발급받으세요
             </p>
-            <Input type="email" label="이메일" placeholder="your@email.com" value={email} onChange={handleEmailChange} className="mb-2" />
+            <Input
+              type="email"
+              label="이메일"
+              placeholder="your@email.com"
+              value={email}
+              onChange={handleEmailChange}
+              className="mb-2"
+            />
+            {emailError && (
+              <p className="text-sm text-red-500 mb-4">{emailError}</p>
+            )}
 
-             {emailError && (
-                <p className="text-sm text-red-500 mb-4">{emailError}</p>
-              )}
-
-            <Button onClick={handleEmailSubmit} loading={loading} disabled={!!emailError || !email} className="w-full">
+            <Button
+              onClick={handleEmailSubmit}
+              loading={loading}
+              disabled={!!emailError || !email}
+              className="w-full"
+            >
               다음
             </Button>
-          </Card>}
+          </Card>
+        )}
 
-        {step === 'did' && <Card>
+        {step === 'did' && (
+          <Card>
             <div className="text-center mb-6">
-              <motion.div animate={{
-            rotate: 360
-          }} transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'linear'
-          }} className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                DID 생성 중...
-              </h2>
-              <p className="text-gray-600">
-                분산 신원 증명(DID)을 생성하고 있습니다.
-                <br />이 과정은 블록체인에 기록됩니다.
-              </p>
+              {!didReady && (
+                <>
+                  <motion.div
+                    animate={{
+                      rotate: 360
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'linear'
+                    }}
+                    className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-4"
+                  />
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    DID 생성 중...
+                  </h2>
+                  <p className="text-gray-600">
+                    분산 신원 증명(DID)을 생성하고 있습니다.
+                    <br />
+                    이 과정은 블록체인에 기록됩니다.
+                  </p>
+                </>
+              )}
+
+              {didReady && (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    DID 생성이 완료되었습니다 🎉
+                  </h2>
+                  <p className="text-gray-600">
+                    다음 단계로 이동할 수 있어요.
+                  </p>
+                </>
+              )}
             </div>
+
             <div className="bg-teal-50 border-2 border-teal-200 rounded-xl p-4 mb-6">
               <p className="text-sm text-teal-900 font-medium mb-2">
                 🔒 보안 알림
@@ -170,16 +243,28 @@ export function OnboardingPage() {
                 않습니다.
               </p>
             </div>
-            <Button onClick={handleDIDCreation} loading={loading} className="w-full">
-              {loading ? 'DID 생성 중...' : 'DID 생성 완료'}
-            </Button>
-          </Card>}
 
-        {step === 'terms' && <Card>
+            <Button
+              onClick={handleDIDCreation}
+              disabled={!didReady}
+              className="w-full"
+            >
+              {didReady ? 'DID 생성 완료' : 'DID 생성 중...'}
+            </Button>
+          </Card>
+        )}
+
+        {step === 'terms' && (
+          <Card>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">약관 동의</h2>
             <div className="space-y-4 mb-6">
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1 w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                />
                 <div>
                   <p className="font-semibold text-gray-900">
                     개인정보 처리 방침 (필수)
@@ -187,8 +272,10 @@ export function OnboardingPage() {
                   <p className="text-sm text-gray-600 mt-1">
                     • 반려동물 건강 데이터는 DID 기반으로 관리됩니다
                     <br />
-                    • 데이터는 암호화되어 저장되며, 소유권은 사용자에게 있습니다
-                    <br />• AI 분석은 로컬 환경에서 처리됩니다 (zkML)
+                    • 데이터는 암호화되어 저장되며, 소유권은 사용자에게
+                    있습니다
+                    <br />
+                    • AI 분석은 로컬 환경에서 처리됩니다 (zkML)
                   </p>
                 </div>
               </label>
@@ -201,12 +288,18 @@ export function OnboardingPage() {
                 모든 데이터는 블록체인에 기록됩니다.
               </p>
             </div>
-            <Button onClick={() => setStep('pet')} disabled={!termsAccepted} className="w-full">
+            <Button
+              onClick={() => setStep('pet')}
+              disabled={!termsAccepted}
+              className="w-full"
+            >
               다음
             </Button>
-          </Card>}
+          </Card>
+        )}
 
-        {step === 'pet' && <Card>
+        {step === 'pet' && (
+          <Card>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               반려동물 등록
             </h2>
@@ -214,49 +307,103 @@ export function OnboardingPage() {
               반려동물 정보를 입력해주세요
             </p>
             <div className="space-y-4">
-              <Input label="이름" placeholder="예: 초코" value={petData.name} onChange={e => setPetData({
-            ...petData,
-            name: e.target.value
-          })} />
-              <Input label="품종" placeholder="예: 골든 리트리버" value={petData.breed} onChange={e => setPetData({
-            ...petData,
-            breed: e.target.value
-          })} />
-              <Input type="number" label="나이" placeholder="예: 3" value={petData.age} onChange={e => setPetData({
-            ...petData,
-            age: e.target.value
-          })} />
+              <Input
+                label="이름"
+                placeholder="예: 초코"
+                value={petData.name}
+                onChange={e =>
+                  setPetData({
+                    ...petData,
+                    name: e.target.value
+                  })
+                }
+              />
+              <Input
+                label="품종"
+                placeholder="예: 골든 리트리버"
+                value={petData.breed}
+                onChange={e =>
+                  setPetData({
+                    ...petData,
+                    breed: e.target.value
+                  })
+                }
+              />
+              <Input
+                type="number"
+                label="나이"
+                placeholder="예: 3"
+                value={petData.age}
+                onChange={e =>
+                  setPetData({
+                    ...petData,
+                    age: e.target.value
+                  })
+                }
+              />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   성별
                 </label>
                 <div className="flex gap-3">
-                  <button onClick={() => setPetData({
-                ...petData,
-                gender: 'male'
-              })} className={`flex-1 py-3 rounded-xl border-2 transition-all ${petData.gender === 'male' ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold' : 'border-gray-200 text-gray-600'}`}>
+                  <button
+                    onClick={() =>
+                      setPetData({
+                        ...petData,
+                        gender: 'male'
+                      })
+                    }
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      petData.gender === 'male'
+                        ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold'
+                        : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
                     남아
                   </button>
-                  <button onClick={() => setPetData({
-                ...petData,
-                gender: 'female'
-              })} className={`flex-1 py-3 rounded-xl border-2 transition-all ${petData.gender === 'female' ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold' : 'border-gray-200 text-gray-600'}`}>
+                  <button
+                    onClick={() =>
+                      setPetData({
+                        ...petData,
+                        gender: 'female'
+                      })
+                    }
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      petData.gender === 'female'
+                        ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold'
+                        : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
                     여아
                   </button>
                 </div>
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={petData.vaccinated} onChange={e => setPetData({
-              ...petData,
-              vaccinated: e.target.checked
-            })} className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
+                <input
+                  type="checkbox"
+                  checked={petData.vaccinated}
+                  onChange={e =>
+                    setPetData({
+                      ...petData,
+                      vaccinated: e.target.checked
+                    })
+                  }
+                  className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                />
                 <span className="text-gray-700">예방접종 완료</span>
               </label>
             </div>
-            <Button onClick={handleComplete} loading={loading} disabled={!petData.name || !petData.breed || !petData.age} className="w-full mt-6">
+            <Button
+              onClick={handleComplete}
+              loading={loading}
+              disabled={!petData.name || !petData.breed || !petData.age}
+              className="w-full mt-6"
+            >
               등록 완료
             </Button>
-          </Card>}
+          </Card>
+        )}
       </motion.div>
-    </div>;
+    </div>
+  );
 }
